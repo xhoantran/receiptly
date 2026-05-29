@@ -7,8 +7,9 @@
  * This script idempotently inserts it (on-conflict do nothing), so it is safe
  * to re-run.
  *
- * Run with: pnpm -C packages/core db:seed   (requires DATABASE_URL set)
+ * Run with: pnpm -C packages/core db:seed   (loads repo-root .env)
  */
+import "../lib/load-env.js"; // must be first: loads repo-root .env before db evaluates
 import { db } from "../db/index.js";
 import { user } from "../db/schema.js";
 import { DEFAULT_USER_ID } from "../lib/constants.js";

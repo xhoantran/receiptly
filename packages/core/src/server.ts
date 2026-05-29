@@ -3,6 +3,7 @@
  * Linking a bank exchanges a public token and stores the item in the DB.
  * Everything else (sync, scrape) is the `receiptly` CLI.
  */
+import "./lib/load-env.js"; // must be first: loads repo-root .env before config/db evaluate
 import express from "express";
 import { readFile } from "node:fs/promises";
 import { resolve, dirname } from "node:path";

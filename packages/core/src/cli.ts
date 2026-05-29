@@ -12,6 +12,7 @@
  *   receiptly tx                   show transactions grouped by merchant
  *   receiptly resolve [--force]    (re)resolve items into canonical products
  */
+import "./lib/load-env.js"; // must be first: loads repo-root .env before config/db evaluate
 import { connectors, connectorsByKey } from "./connectors/index.js";
 import { login, withSession, listSessions, hasSession } from "./session.js";
 import { ingest } from "./lib/ingest.js";
