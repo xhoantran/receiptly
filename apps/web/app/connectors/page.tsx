@@ -1,5 +1,6 @@
 import { listConnectors, connectorStats, coverageStats, money, merchantSummary, emojiFor, chipFor, DEFAULT_USER_ID } from "@/lib/data";
 import { Card, MerchantBadge, Pill } from "@/components/ui";
+import { ConnectMerchant } from "@/components/ConnectMerchant";
 
 export default async function ConnectorsPage() {
   const [connectors, stats, coverage, merchants] = await Promise.all([
@@ -50,7 +51,7 @@ export default async function ConnectorsPage() {
                     ) : (
                       <Pill tone="sprout">✓ official</Pill>
                     )}
-                    {live ? <Pill tone="sprout">🟢 live</Pill> : <Pill tone="muted">soon</Pill>}
+                    {live ? <Pill tone="sprout">🟢 live</Pill> : c.mode === "browser" ? null : <Pill tone="muted">soon</Pill>}
                   </div>
                 </div>
               </div>
@@ -80,10 +81,20 @@ export default async function ConnectorsPage() {
                 </>
               ) : (
                 <p className="mt-4 rounded-2xl bg-cream/60 px-4 py-3 text-[13px] leading-snug text-muted">
-                  Connector scaffolded. Run{" "}
-                  <code className="rounded bg-paper px-1 py-0.5 font-mono text-[12px]">npm run discover {c.key}</code>{" "}
-                  to bring it live.
+                  {c.mode === "browser"
+                    ? "No receipts yet — connect below to fetch your itemized receipts."
+                    : "Official connector — receipts appear once it's enabled."}
                 </p>
+              )}
+
+              {c.mode === "browser" && (
+                <ConnectMerchant
+                  connectorKey={c.key}
+                  displayName={c.displayName}
+                  status={c.status}
+                  lastSyncAt={c.lastSyncAt}
+                  lastError={c.lastError}
+                />
               )}
             </Card>
           );

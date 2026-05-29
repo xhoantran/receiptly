@@ -19,6 +19,7 @@ import {
   plaidItems,
   transactions,
   merchantConnections,
+  merchantSessions,
   receipts,
   receiptItems,
   matches,
@@ -184,6 +185,91 @@ export async function markConnectorSynced(userId: string, key: string, error?: s
         lastSyncAt: now(),
         lastError: error ?? null,
       },
+    });
+}
+
+// ─── Merchant browser sessions (encrypted storageState) ───
+// The `encrypted_state` column holds AES-256-GCM ciphertext of the Playwright
+// storageState JSON — same at-rest pattern as Plaid access tokens above. The
+// live-view worker writes here on a successful interactive login; the scrape
+// worker reads it back to restore the authenticated context headlessly.
+
+const SESSION_TTL_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
+
+export async function saveMerchantSession(
+  userId: string,
+  connectorKey: string,
+  storageStateJson: string
+) {
+  const encryptedState = encrypt(storageStateJson);
+  const expiresAt = now() + SESSION_TTL_MS;
+  await db
+    .insert(merchantSessions)
+    .values({ userId, connectorKey, encryptedState, expiresAt, status: "active" })
+    .onConflictDoUpdate({
+      target: [merchantSessions.userId, merchantSessions.connectorKey],
+      set: { encryptedState, expiresAt, status: "active" },
+    });
+}
+
+export async function getMerchantSession(
+  userId: string,
+  connectorKey: string
+): Promise<string | null> {
+  const [row] = await db
+    .select()
+    .from(merchantSessions)
+    .where(
+      and(
+        eq(merchantSessions.userId, userId),
+        eq(merchantSessions.connectorKey, connectorKey)
+      )
+    );
+  if (!row || !row.encryptedState) return null;
+  return decrypt(row.encryptedState);
+}
+
+export async function getMerchantConnection(
+  userId: string,
+  connectorKey: string
+): Promise<{ status: "unlinked" | "linked" | "error"; lastSyncAt: number | null; lastError: string | null } | null> {
+  const [row] = await db
+    .select({
+      status: merchantConnections.status,
+      lastSyncAt: merchantConnections.lastSyncAt,
+      lastError: merchantConnections.lastError,
+    })
+    .from(merchantConnections)
+    .where(
+      and(
+        eq(merchantConnections.userId, userId),
+        eq(merchantConnections.connectorKey, connectorKey)
+      )
+    );
+  return row ?? null;
+}
+
+export async function setMerchantConnectionStatus(
+  userId: string,
+  connectorKey: string,
+  status: "unlinked" | "linked" | "error",
+  opts: { lastError?: string | null; lastSyncAt?: number } = {}
+) {
+  const set: { status: typeof status; lastError?: string | null; lastSyncAt?: number } = { status };
+  if ("lastError" in opts) set.lastError = opts.lastError ?? null;
+  if (opts.lastSyncAt !== undefined) set.lastSyncAt = opts.lastSyncAt;
+  await db
+    .insert(merchantConnections)
+    .values({
+      userId,
+      connectorKey,
+      status,
+      lastError: opts.lastError ?? null,
+      lastSyncAt: opts.lastSyncAt ?? null,
+    })
+    .onConflictDoUpdate({
+      target: [merchantConnections.userId, merchantConnections.connectorKey],
+      set,
     });
 }
 

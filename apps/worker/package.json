@@ -1,0 +1,22 @@
+{
+  "name": "@receiptly/worker",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@receiptly/core": "workspace:*",
+    "pg-boss": "^10.1.5",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/ws": "^8.5.13",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  }
+}
