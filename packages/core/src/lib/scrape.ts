@@ -4,7 +4,7 @@
  * results. This is what the pg-boss "scrape" worker calls after a successful
  * interactive login (and what a scheduled re-sync would call).
  *
- * WebKit ONLY, headless (see lib/browser/provider.ts). Playwright lives here —
+ * WebKit ONLY, headed by default (see lib/browser/provider.ts). Playwright lives here —
  * this module MUST NOT be imported by apps/web; the web app reaches scraping
  * only through the worker over HTTP/WS.
  */
@@ -44,7 +44,7 @@ export async function runScrape(
   const { browser, page } = await browserProvider.openContext({
     storageState: state,
     viewport: DEFAULT_VIEWPORT,
-    headless: true,
+    // Headed (provider default) for stealth parity with the proven CLI scrape.
   });
 
   try {

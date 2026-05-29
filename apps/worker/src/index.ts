@@ -24,14 +24,12 @@ import "@receiptly/core/lib/load-env.js";
 
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { randomUUID } from "node:crypto";
+import { writeFile, mkdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import { WebSocketServer, WebSocket } from "ws";
 import PgBoss from "pg-boss";
 
-import {
-  browserProvider,
-  DEFAULT_VIEWPORT,
-  type Viewport,
-} from "@receiptly/core/lib/browser/provider.js";
+import { browserProvider, type Viewport } from "@receiptly/core/lib/browser/provider.js";
 import { runScrape } from "@receiptly/core/lib/scrape.js";
 import { connectorsByKey } from "@receiptly/core/connectors/index.js";
 import {
@@ -44,11 +42,14 @@ import {
 const PORT = Number(process.env.WORKER_PORT ?? 4100);
 const WORKER_SECRET = process.env.WORKER_SECRET ?? "";
 const DATABASE_URL = process.env.DATABASE_URL ?? "";
-const VIEWPORT: Viewport = DEFAULT_VIEWPORT; // fixed 1280x800 for login sessions
+// Desktop viewport: the Browserbase live-view is a desktop Chromium and the Publix
+// connector targets the desktop API. (The local WebKit canvas path uses it too.)
+const VIEWPORT: Viewport = { width: 1280, height: 800 };
 
 const SESSION_TTL_MS = 5 * 60_000; // 5-minute pending-session + login-window TTL
 const SCREENSHOT_INTERVAL_MS = 200; // ~5 fps JPEG stream
 const LOGIN_POLL_MS = 1500; // connector.isLoggedIn poll cadence
+const DEBUG_DIR = resolve(process.cwd(), "../../data/debug"); // live-view evidence captures
 
 if (!WORKER_SECRET) {
   console.error("[worker] FATAL: WORKER_SECRET is not set (see .env)");
@@ -60,6 +61,16 @@ if (!DATABASE_URL) {
 }
 
 // ─── Pending login sessions (in-memory; single WS use, 5-min TTL) ───
+// Live debug handle for a connected session — read on demand by GET /debug. No
+// secrets: only the URL/title, failed requests, console errors, and a screenshot.
+type LiveDebug = {
+  getUrl: () => string;
+  getTitle: () => Promise<string>;
+  consoleErrors: string[];
+  failed: string[];
+  screenshot: () => Promise<Buffer>;
+};
+
 type PendingSession = {
   sessionId: string;
   token: string;
@@ -67,6 +78,7 @@ type PendingSession = {
   connectorKey: string;
   createdAt: number; // epoch ms
   used: boolean;
+  live?: LiveDebug;
 };
 
 const sessions = new Map<string, PendingSession>();
@@ -155,6 +167,39 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // Live evidence for debugging a stuck/blocked session: screenshot + URL +
+  // failed requests (a 4xx on the OIDC callback = a bot block) + console errors.
+  if (req.method === "GET" && url.pathname === "/debug") {
+    await mkdir(DEBUG_DIR, { recursive: true }).catch(() => {});
+    const out = [];
+    for (const s of sessions.values()) {
+      if (!s.live) {
+        out.push({ sessionId: s.sessionId, connectorKey: s.connectorKey, live: false });
+        continue;
+      }
+      let screenshot: string;
+      try {
+        const buf = await s.live.screenshot();
+        const p = resolve(DEBUG_DIR, `liveview-${s.sessionId}.jpg`);
+        await writeFile(p, buf);
+        screenshot = p;
+      } catch (e) {
+        screenshot = `(failed: ${e instanceof Error ? e.message : String(e)})`;
+      }
+      out.push({
+        sessionId: s.sessionId,
+        connectorKey: s.connectorKey,
+        url: s.live.getUrl(),
+        title: await s.live.getTitle().catch(() => "(unavailable)"),
+        failedRequests: s.live.failed.slice(-30),
+        consoleErrors: s.live.consoleErrors.slice(-20),
+        screenshot,
+      });
+    }
+    send(res, 200, { sessions: out });
+    return;
+  }
+
   send(res, 404, { error: "not found" });
 });
 
@@ -234,7 +279,8 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
     hardTimeout = null;
     sessions.delete(sessionId);
     if (ctx) {
-      await ctx.browser.close().catch(() => {});
+      if (ctx.dispose) await ctx.dispose().catch(() => {});
+      else await ctx.browser.close().catch(() => {});
       ctx = null;
     }
     if (closeWs) {
@@ -260,9 +306,57 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
     ctx = await browserProvider.openContext({
       storageState: prior ?? undefined,
       viewport: VIEWPORT,
-      headless: true,
+      // Headed (provider default): headless WebKit is flagged by merchant bot
+      // defenses, which stalls the OTP/"send code" step. BROWSER_HEADLESS=true to override.
     });
     const { page } = ctx;
+    const tag = `[live ${sessionId.slice(0, 8)}/${connectorKey}]`;
+    let shotErrLogged = false;
+
+    // ── Diagnostics for the "hangs at send code" report (NO secrets logged): ──
+    // main-frame navigations, POPUPS (a new tab Publix may open for the one-time-
+    // code step that our single streamed page would NOT follow), crashes, and any
+    // new page in the context.
+    page.on("framenavigated", (f) => {
+      if (f === page.mainFrame()) console.log(`${tag} nav -> ${f.url()}`);
+    });
+    page.on("popup", (p) => console.log(`${tag} POPUP -> ${p.url()} (NOT streamed)`));
+    page.on("crash", () => console.error(`${tag} PAGE CRASHED`));
+    ctx.context.on("page", (p) => console.log(`${tag} +page in context -> ${p.url()}`));
+
+    // Evidence handle for GET /debug: screenshot + failed requests + console errors.
+    const live: LiveDebug = {
+      getUrl: () => {
+        try {
+          return page.url();
+        } catch {
+          return "(closed)";
+        }
+      },
+      getTitle: () => page.title(),
+      consoleErrors: [],
+      failed: [],
+      screenshot: () => page.screenshot({ type: "jpeg", quality: 70 }),
+    };
+    session.live = live;
+    page.on("console", (m) => {
+      const t = m.type();
+      if (t === "error" || t === "warning") {
+        live.consoleErrors.push(`${t}: ${m.text()}`.slice(0, 300));
+        if (live.consoleErrors.length > 50) live.consoleErrors.shift();
+      }
+    });
+    page.on("response", (r) => {
+      const s = r.status();
+      if (s >= 400) {
+        live.failed.push(`${s} ${r.request().method()} ${r.url()}`.slice(0, 300));
+        if (live.failed.length > 50) live.failed.shift();
+      }
+    });
+    page.on("requestfailed", (r) => {
+      live.failed.push(`ERR ${r.method()} ${r.url()} :: ${r.failure()?.errorText ?? "?"}`.slice(0, 300));
+      if (live.failed.length > 50) live.failed.shift();
+    });
 
     sendJson({ type: "meta", viewport: { width: VIEWPORT.width, height: VIEWPORT.height } });
 
@@ -270,6 +364,12 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
     if (closed) return;
     sendStatus("awaiting_login");
 
+    if (ctx.liveViewUrl) {
+    // ── Remote (Browserbase): the user logs in inside the interactive live-view
+    // iframe (real input telemetry + residential IP → clears Akamai). No canvas
+    // streaming or input forwarding; we just watch for login over CDP below. ──
+    sendJson({ type: "liveview", url: ctx.liveViewUrl });
+    } else {
     // ── Screenshot stream (~5 fps), guarded against overlap + closed page ──
     let shooting = false;
     screenshotTimer = setInterval(() => {
@@ -280,13 +380,19 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
         .then((buf) => {
           if (!closed && ws.readyState === WebSocket.OPEN) ws.send(buf);
         })
-        .catch(() => {})
+        .catch((e) => {
+          if (!shotErrLogged) {
+            shotErrLogged = true;
+            console.error(`${tag} screenshot error:`, e instanceof Error ? e.message : e);
+          }
+        })
         .finally(() => {
           shooting = false;
         });
     }, SCREENSHOT_INTERVAL_MS);
 
-    // ── Relay client input -> Playwright ──
+    // ── Relay client input -> Playwright (serialized; see inputChain) ──
+    let inputChain: Promise<void> = Promise.resolve();
     ws.on("message", (raw) => {
       if (closed || page.isClosed()) return;
       let msg: ClientMessage;
@@ -295,16 +401,28 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
       } catch {
         return;
       }
-      void handleClientMessage(msg).catch(() => {});
+      if (msg.type === "mouse" && msg.action === "click") console.log(`${tag} click @ ${msg.x},${msg.y}`);
+      else if (msg.type === "key") console.log(`${tag} key ${msg.key}`);
+      else if (msg.type === "text") console.log(`${tag} text(${msg.text.length})`); // length only — never the chars
+      // Serialize: events MUST apply in arrival order. Running them concurrently
+      // raced down/up and never formed a real `click` (fields focus on mousedown,
+      // but buttons like B2C "Continue" need a full click) — that was the bug.
+      inputChain = inputChain
+        .then(() => handleClientMessage(msg))
+        .catch((e) => console.error(`${tag} input error:`, e instanceof Error ? e.message : e));
 
       async function handleClientMessage(m: ClientMessage) {
+        if (closed || page.isClosed()) return;
         switch (m.type) {
           case "mouse": {
             const button = m.button ?? "left";
+            // Atomic click: Playwright sequences move→down→(delay)→up internally,
+            // reliably firing a real `click`. We ignore the canvas's separate
+            // down/up (they raced). The continuous move stream still supplies the
+            // human pointer telemetry that gets us past Akamai/B2C.
             if (m.action === "move") await page.mouse.move(m.x, m.y);
-            else if (m.action === "down") await page.mouse.down({ button });
-            else if (m.action === "up") await page.mouse.up({ button });
-            else if (m.action === "click") await page.mouse.click(m.x, m.y, { button });
+            else if (m.action === "click")
+              await page.mouse.click(m.x, m.y, { button, delay: 40 + Math.floor(Math.random() * 80) });
             return;
           }
           case "wheel":
@@ -312,10 +430,10 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
             return;
           case "key":
             if (m.action === "down") await page.keyboard.down(m.key);
-            else await page.keyboard.press(m.key);
+            else await page.keyboard.press(m.key, { delay: 30 + Math.floor(Math.random() * 70) });
             return;
           case "text":
-            await page.keyboard.type(m.text);
+            await page.keyboard.type(m.text, { delay: 60 + Math.floor(Math.random() * 120) });
             return;
           case "close":
             await teardown();
@@ -323,6 +441,7 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
         }
       }
     });
+    } // end local (canvas) live-view
 
     // ── Login detection: on success, persist + enqueue scrape ──
     let finishing = false;
@@ -343,8 +462,9 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
           await setMerchantConnectionStatus(userId, connectorKey, "linked");
           sendStatus("logged_in");
 
-          // Close the browser before enqueuing the headless scrape.
-          await ctx!.browser.close().catch(() => {});
+          // Release the browser/remote session before enqueuing the headless scrape.
+          if (ctx!.dispose) await ctx!.dispose().catch(() => {});
+          else await ctx!.browser.close().catch(() => {});
           ctx = null;
 
           await boss.send("scrape", { userId, connectorKey });

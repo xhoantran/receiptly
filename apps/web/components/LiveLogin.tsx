@@ -49,6 +49,9 @@ export function LiveLogin({
 
   const [phase, setPhase] = useState<Phase>({ kind: "starting" });
   const [viewport, setViewport] = useState<Viewport>({ width: 1280, height: 800 });
+  // Set when the worker uses a remote provider (Browserbase): we embed its
+  // interactive live-view iframe instead of streaming our own canvas.
+  const [liveViewUrl, setLiveViewUrl] = useState<string | null>(null);
   // Bumped to re-run the connect effect on "Retry".
   const [attempt, setAttempt] = useState(0);
   // Render the modal at <body> via a portal so it escapes the connector card's
@@ -130,6 +133,7 @@ export function LiveLogin({
     let cancelled = false;
     let frameUrl: string | null = null; // object URL of the in-flight frame
     setPhase({ kind: "starting" });
+    setLiveViewUrl(null);
 
     (async () => {
       // Capture the pre-login sync time so polling can detect a NEW scrape.
@@ -172,7 +176,7 @@ export function LiveLogin({
 
       ws.onmessage = (ev) => {
         if (typeof ev.data === "string") {
-          let msg: { type?: string; viewport?: Viewport; state?: WsState; message?: string };
+          let msg: { type?: string; viewport?: Viewport; state?: WsState; message?: string; url?: string };
           try {
             msg = JSON.parse(ev.data);
           } catch {
@@ -180,6 +184,8 @@ export function LiveLogin({
           }
           if (msg.type === "meta" && msg.viewport) {
             setViewport(msg.viewport);
+          } else if (msg.type === "liveview" && msg.url) {
+            setLiveViewUrl(msg.url);
           } else if (msg.type === "status" && msg.state) {
             setPhase({ kind: "live", state: msg.state, message: msg.message });
             if (msg.state === "scraping") startPolling();
@@ -267,6 +273,9 @@ export function LiveLogin({
   );
 
   const interactive = phase.kind === "live" && (phase.state === "loading" || phase.state === "awaiting_login");
+  // Phone-ratio viewports render a tall, narrow canvas; size by height and use a
+  // slim modal. Desktop (landscape) fills the wide modal as before.
+  const portrait = viewport.height >= viewport.width;
 
   const onMouse = useCallback(
     (action: "move" | "down" | "up" | "click") => (e: React.MouseEvent) => {
@@ -352,7 +361,7 @@ export function LiveLogin({
         if (e.target === e.currentTarget) close();
       }}
     >
-      <Card className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden p-0">
+      <Card className={`flex max-h-[92vh] w-full flex-col overflow-hidden p-0 ${portrait ? "max-w-sm" : "max-w-5xl"}`}>
         <header className="flex items-center justify-between gap-3 border-b border-line/80 px-5 py-3.5">
           <div className="min-w-0">
             <p className="font-display text-lg font-semibold text-ink">Connect {displayName}</p>
@@ -385,7 +394,14 @@ export function LiveLogin({
         </div>
 
         <div className="flex flex-1 items-center justify-center overflow-auto bg-cream/40 p-4">
-          {showCanvas ? (
+          {liveViewUrl ? (
+            <iframe
+              src={liveViewUrl}
+              title={`Sign in to ${displayName}`}
+              allow="clipboard-read; clipboard-write"
+              className="h-[78vh] w-full rounded-xl border border-line bg-white shadow-soft"
+            />
+          ) : showCanvas ? (
             <canvas
               ref={canvasRef}
               width={viewport.width}
@@ -398,7 +414,7 @@ export function LiveLogin({
               onWheel={onWheel}
               onKeyDown={onKeyDown}
               onContextMenu={(e) => e.preventDefault()}
-              className="max-w-full rounded-xl border border-line bg-white shadow-soft outline-none ring-sprout/40 focus:ring-2"
+              className={`rounded-xl border border-line bg-white shadow-soft outline-none ring-sprout/40 focus:ring-2 ${portrait ? "h-[76vh] w-auto max-w-full" : "w-full max-h-[76vh]"}`}
               style={{ aspectRatio: `${viewport.width} / ${viewport.height}`, touchAction: "none", cursor: interactive ? "crosshair" : "default" }}
             />
           ) : (
