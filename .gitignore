@@ -13,11 +13,14 @@ node_modules/
 dist/
 *.tsbuildinfo
 
+# Turborepo
+.turbo/
+
 # Next.js
-web/.next/
-web/out/
-web/next-env.d.ts
-web/shot-*.png
+apps/web/.next/
+apps/web/out/
+apps/web/next-env.d.ts
+apps/web/shot-*.png
 
 # Playwright artifacts
 .playwright-mcp/

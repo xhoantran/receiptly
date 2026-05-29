@@ -23,7 +23,7 @@ So your finance app knows you spent `$62.02 at PUBLIX #1234`. It has no idea you
 
 **receiptly closes that loop.** It links the transaction to the *real itemized receipt* the merchant has, normalizes it, and hands the whole thing — SKUs, weights, savings, product photos — to an AI agent that actually knows what you buy.
 
-> Think of it as **Knot, but open-source, local-first, and built for the long tail of merchants** nobody else bothers to integrate.
+> Think of it as **open-source, local-first, item-level receipts built for the long tail of merchants** nobody else bothers to integrate.
 
 ---
 
@@ -42,10 +42,6 @@ So your finance app knows you spent `$62.02 at PUBLIX #1234`. It has no idea you
 ---
 
 ## 📸 A look
-
-<div align="center">
-  <img src="docs/dashboard.png" alt="receiptly — dashboard, receipts and the Sprout agent" width="820" />
-</div>
 
 ```
 ┌─────────────────────────────────────────────────────────┐
