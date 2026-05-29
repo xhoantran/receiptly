@@ -1,0 +1,121 @@
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────
+   receiptly — "soft receipt paper" design system
+   ───────────────────────────────────────────── */
+@theme {
+  /* Surfaces — warm paper */
+  --color-paper: #faf6ee;
+  --color-cream: #f3ecdf;
+  --color-surface: #ffffff;
+  --color-ink: #211f1a;
+  --color-ink-soft: #4b4740;
+  --color-muted: #918b7e;
+  --color-line: #ece4d5;
+
+  /* Brand — sprout green */
+  --color-sprout: #0fa968;
+  --color-sprout-deep: #0a7d4d;
+  --color-sprout-soft: #c8f4de;
+
+  /* Pastel chips — merchants & categories */
+  --color-pink: #ffd6e0;
+  --color-lilac: #e4dbff;
+  --color-butter: #ffe7a8;
+  --color-sky: #cfeaff;
+  --color-peach: #ffd6bf;
+  --color-mint: #c8f4de;
+  --color-clay: #ead9c6;
+
+  /* Data accents */
+  --color-berry: #e5547d;
+  --color-grape: #7c6bf0;
+  --color-ink-chip: #2b2a26;
+
+  /* Typography */
+  --font-display: "Fraunces", Georgia, serif;
+  --font-body: "Hanken Grotesk", system-ui, sans-serif;
+  --font-mono: "Spline Sans Mono", ui-monospace, monospace;
+
+  /* Radii — generous & rounded */
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-card: 28px;
+  --radius-xl: 36px;
+  --radius-pill: 999px;
+
+  /* Soft warm shadows */
+  --shadow-soft: 0 1px 2px rgba(33, 31, 26, 0.04), 0 10px 30px rgba(150, 132, 96, 0.1);
+  --shadow-pop: 0 2px 6px rgba(33, 31, 26, 0.06), 0 20px 44px rgba(150, 132, 96, 0.18);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  /* subtle paper grain */
+  background-image: radial-gradient(rgba(150, 132, 96, 0.04) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+::selection {
+  background: var(--color-sprout-soft);
+  color: var(--color-sprout-deep);
+}
+
+/* Display headings get Fraunces with optical softness */
+.font-display {
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 40, "WONK" 0, "opsz" 80;
+  letter-spacing: -0.02em;
+}
+
+/* Tabular mono numerals for money */
+.amount {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Perforated receipt edge (top + bottom zig) */
+.perf-edge {
+  --perf: 11px;
+  -webkit-mask:
+    radial-gradient(var(--perf) at 50% 0, #0000 98%, #000) 50% 0 / 22px 100% repeat-x,
+    linear-gradient(#000 0 0) 50% / 100% calc(100% - 1px) no-repeat;
+  mask:
+    radial-gradient(var(--perf) at 50% 0, #0000 98%, #000) 50% 0 / 22px 100% repeat-x,
+    linear-gradient(#000 0 0) 50% / 100% calc(100% - 1px) no-repeat;
+}
+
+/* Fade/slide-in on load with stagger */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise {
+  animation: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.96); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent;
+}

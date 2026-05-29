@@ -1,0 +1,53 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>receiptly — link a bank</title>
+    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+    <style>
+      body { font-family: -apple-system, system-ui, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; color: #111; }
+      h1 { font-weight: 600; }
+      button { font-size: 16px; padding: 12px 20px; border: 0; border-radius: 8px; background: #111; color: white; cursor: pointer; }
+      button:disabled { opacity: 0.5; cursor: default; }
+      pre { background: #f4f4f4; padding: 12px; border-radius: 8px; overflow-x: auto; font-size: 13px; }
+      .ok { color: #0a7c2c; }
+      .err { color: #c0392b; }
+    </style>
+  </head>
+  <body>
+    <h1>receiptly — link a bank</h1>
+    <p>Plaid Limited Production. Real bank, first 200 API calls free.</p>
+    <button id="link-btn" disabled>Loading…</button>
+    <p id="status"></p>
+    <h3>Then:</h3>
+    <pre>curl -X POST http://localhost:3000/api/sync</pre>
+    <script>
+      const btn = document.getElementById("link-btn");
+      const status = document.getElementById("status");
+
+      async function init() {
+        const r = await fetch("/api/create_link_token", { method: "POST" });
+        const { link_token, error } = await r.json();
+        if (error) { status.innerHTML = '<span class="err">' + error + '</span>'; return; }
+        const handler = Plaid.create({
+          token: link_token,
+          onSuccess: async (public_token) => {
+            const ex = await fetch("/api/exchange_public_token", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ public_token }),
+            });
+            const data = await ex.json();
+            if (data.ok) status.innerHTML = '<span class="ok">Linked. Item id: ' + data.item_id + '</span>';
+            else status.innerHTML = '<span class="err">' + JSON.stringify(data) + '</span>';
+          },
+          onExit: (err) => { if (err) status.innerHTML = '<span class="err">' + err.error_message + '</span>'; },
+        });
+        btn.disabled = false;
+        btn.textContent = "Link a bank";
+        btn.onclick = () => handler.open();
+      }
+      init();
+    </script>
+  </body>
+</html>

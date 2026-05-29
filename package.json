@@ -1,0 +1,33 @@
+{
+  "name": "receiptly",
+  "version": "0.0.1",
+  "description": "Open-source plugin library for fetching SKU-level receipts from merchants. Plaid stops at the transaction; receiptly goes to the item. Runs locally — no hosted service required.",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "receiptly": "src/cli.ts"
+  },
+  "scripts": {
+    "receiptly": "tsx src/cli.ts",
+    "web": "npm --prefix web run dev",
+    "db:push": "drizzle-kit push",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.99.0",
+    "better-sqlite3": "^12.10.0",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "express": "^5.2.1",
+    "plaid": "^42.2.0",
+    "playwright": "^1.60.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.9.1",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3"
+  }
+}

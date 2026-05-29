@@ -1,0 +1,35 @@
+# Secrets — NEVER commit these
+.env
+.env.local
+.env.*.local
+
+# User data — contains Plaid access tokens, merchant session cookies, scraped receipts
+data/
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Next.js
+web/.next/
+web/out/
+web/next-env.d.ts
+web/shot-*.png
+
+# Playwright artifacts
+.playwright-mcp/
+playwright-report/
+test-results/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
