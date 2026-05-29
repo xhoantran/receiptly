@@ -1,3 +1,6 @@
 packages:
   - "packages/*"
-  - "apps/*"
+  - "apps/web"
+  - "apps/worker"
+  # apps/mobile is a standalone Expo app (its own npm install) — keeping it out of
+  # the pnpm workspace avoids Metro vs. pnpm symlink resolution issues.
