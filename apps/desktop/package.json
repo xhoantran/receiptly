@@ -3,11 +3,48 @@
   "version": "0.0.1",
   "private": true,
   "description": "receiptly desktop — dashboard + native on-device merchant login (beats Akamai with a real local Chromium).",
+  "author": "receiptly",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.receiptly.desktop",
+    "productName": "receiptly",
+    "files": [
+      "main.js",
+      "preload.js",
+      "publix-preload.js",
+      "html-preload.js",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.finance"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Finance"
+    }
   },
   "devDependencies": {
-    "electron": "^34.0.0"
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
   }
 }
