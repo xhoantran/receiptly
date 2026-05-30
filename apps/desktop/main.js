@@ -11,33 +11,69 @@
 // an in-page injection (publix-preload.js, no CDP) and POST them to the backend.
 const { app, BrowserWindow, ipcMain, session } = require("electron");
 const path = require("path");
+const fs = require("fs");
 
 // Chromium's sandbox fails to initialize for an unsigned/dev Electron in some
 // environments ("Failed to initialize sandbox" → blank renderers). Disabling it
 // is invisible to web pages, so it doesn't affect the Akamai bypass.
 app.commandLine.appendSwitch("no-sandbox");
 
-const API_URL = process.env.RECEIPTLY_API_URL || "http://localhost:4000";
 const PUBLIX_URL = "https://www.publix.com/account/purchases?nav=account_sidebar_button";
 const CHROME_UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+// The desktop app is a native shell over your receiptly web app (the same pattern
+// Slack/Discord/Notion use to wrap their web UI). It loads the dashboard from YOUR
+// server — chosen once on the Connect screen and persisted to userData/config.json,
+// overridable via the RECEIPTLY_API_URL env var. Its own value-add is the on-device
+// merchant login below, which a plain browser can't do.
+const DEFAULT_API_URL = "http://localhost:4000";
+function configPath() {
+  return path.join(app.getPath("userData"), "config.json");
+}
+function readConfig() {
+  try { return JSON.parse(fs.readFileSync(configPath(), "utf8")); } catch { return {}; }
+}
+function writeConfig(patch) {
+  try { fs.writeFileSync(configPath(), JSON.stringify({ ...readConfig(), ...patch }, null, 2)); } catch (e) { /* best effort */ }
+}
+function getApiUrl() {
+  return (process.env.RECEIPTLY_API_URL || readConfig().apiUrl || DEFAULT_API_URL).replace(/\/+$/, "");
+}
+
+const LOGO_SVG = `<svg viewBox="0 0 512 512" width="72" height="72"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#15bd79"/><stop offset="1" stop-color="#0a7d4d"/></linearGradient></defs><rect x="16" y="16" width="480" height="480" rx="124" fill="url(#lg)"/><path d="M181,174 Q181,150 205,150 H307 Q331,150 331,174 V345 L306,363 281,345 256,363 231,345 206,363 181,345 Z" fill="#faf6ee"/><g stroke="#9bd9be" stroke-width="13" stroke-linecap="round"><line x1="205" y1="208" x2="307" y2="208"/><line x1="205" y1="246" x2="281" y2="246"/></g><path d="M256,150 V120" stroke="#faf6ee" stroke-width="11" stroke-linecap="round"/><path d="M256,134 C235,135 221,118 231,99 C252,104 258,119 256,134 Z" fill="#faf6ee"/><path d="M256,134 C277,135 291,118 281,99 C260,104 254,119 256,134 Z" fill="#faf6ee"/></svg>`;
 
 let mainWin = null;
 
 function loadDashboard() {
   if (!mainWin || mainWin.isDestroyed()) return;
-  mainWin.loadURL(API_URL).catch(() => {
-    mainWin.loadURL(
-      "data:text/html;charset=utf-8," +
-        encodeURIComponent(
-          `<body style="font:16px -apple-system,system-ui;padding:48px;color:#211f1a;background:#faf6ee">
-            <h2>🧾 receiptly</h2>
-            <p>Couldn't reach the dashboard at <b>${API_URL}</b>.</p>
-            <p>Start it on this Mac with <code>pnpm web</code>, then reload (⌘R).</p>
-          </body>`
-        )
-    );
-  });
+  mainWin.loadURL(getApiUrl()).catch((e) => showConnect(e && e.message));
+}
+
+// Shown when the dashboard URL can't be reached — a friendly "point me at your
+// receiptly" screen (with a saved, editable URL) instead of a raw error.
+function showConnect(reason) {
+  if (!mainWin || mainWin.isDestroyed()) return;
+  mainWin.loadURL("data:text/html;charset=utf-8," + encodeURIComponent(connectScreen(getApiUrl(), reason)));
+}
+
+function connectScreen(url, reason) {
+  return `<!doctype html><meta charset="utf-8"><body style="margin:0;font:15px/1.5 -apple-system,system-ui,sans-serif;color:#211f1a;background:#faf6ee;height:100vh;display:grid;place-items:center">
+  <div style="max-width:460px;text-align:center;padding:32px">
+    <div style="margin:0 auto 18px;width:72px;height:72px">${LOGO_SVG}</div>
+    <h1 style="font-family:Georgia,serif;font-weight:600;font-size:26px;margin:0 0 6px">Connect to your receiptly</h1>
+    <p style="color:#8a8475;margin:0 0 22px">This app shows the dashboard from your receiptly server and adds on-device merchant login. Point it at your instance.</p>
+    <input id="u" value="${url}" placeholder="${DEFAULT_API_URL}" spellcheck="false" autocapitalize="off" style="width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #e2d9c8;border-radius:12px;font:14px ui-monospace,monospace;background:#fff;color:#211f1a"/>
+    <button onclick="go()" style="margin-top:12px;width:100%;padding:12px;border:0;border-radius:12px;background:#0a7d4d;color:#fff;font-weight:600;font-size:15px;cursor:pointer">Connect</button>
+    ${reason ? `<p style="color:#b3261e;font-size:12.5px;margin-top:16px">Couldn't reach it (${String(reason).slice(0, 90)}). Is the server running?</p>` : ""}
+    <p style="color:#a59d8c;font-size:12.5px;margin-top:18px">Running it locally? Start it with <code style="background:#f3ecdf;padding:1px 5px;border-radius:5px">pnpm web</code> on this Mac.</p>
+  </div>
+  <script>
+    function go(){ var v=(document.getElementById('u').value||'').trim(); if(v&&window.receiptlyDesktop&&window.receiptlyDesktop.setApiUrl) window.receiptlyDesktop.setApiUrl(v); }
+    document.getElementById('u').addEventListener('keydown', function(e){ if(e.key==='Enter') go(); });
+    document.getElementById('u').focus();
+  </script>
+  </body>`;
 }
 
 function createMain() {
@@ -46,6 +82,13 @@ function createMain() {
     height: 880,
     title: "receiptly",
     webPreferences: { preload: path.join(__dirname, "preload.js"), sandbox: false },
+  });
+  // If the dashboard URL is unreachable, show the Connect screen instead of a
+  // browser error page. (Ignore aborted loads and our own data: connect screen.)
+  mainWin.webContents.on("did-fail-load", (_e, code, desc, failingUrl) => {
+    if (code === -3) return;
+    if (!failingUrl || failingUrl.startsWith("data:")) return;
+    showConnect(desc || `error ${code}`);
   });
   loadDashboard();
 }
@@ -177,7 +220,7 @@ async function connectPublix() {
     const to = setTimeout(() => ctrl.abort(), 180000);
     let data;
     try {
-      const res = await fetch(`${API_URL}/api/connectors/publix/raw`, {
+      const res = await fetch(`${getApiUrl()}/api/connectors/publix/raw`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(captured),
@@ -201,6 +244,14 @@ async function connectPublix() {
 }
 
 ipcMain.handle("connect-publix", () => connectPublix());
+
+// Save the receiptly server URL (from the Connect screen) and (re)load it.
+ipcMain.handle("set-api-url", (_e, url) => {
+  const clean = String(url || "").trim().replace(/\/+$/, "");
+  if (clean) writeConfig({ apiUrl: clean });
+  loadDashboard();
+  return { ok: true, apiUrl: getApiUrl() };
+});
 
 // ── Generic on-device capture for HTML-receipt merchants (Amazon, Costco) ──
 // These merchants have no clean JSON receipt API, so instead of wrapping fetch
@@ -318,7 +369,7 @@ async function connectHtml(key) {
     const to = setTimeout(() => ctrl.abort(), 180000);
     let data;
     try {
-      const res = await fetch(`${API_URL}/api/connectors/${key}/raw`, {
+      const res = await fetch(`${getApiUrl()}/api/connectors/${key}/raw`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ orders: payload }),
