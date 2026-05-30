@@ -90,7 +90,7 @@ export default async function Dashboard() {
                 {topMerchants.map((m) => (
                   <Link key={m.merchant} href={`/transactions?merchant=${encodeURIComponent(m.merchant)}`}>
                     <Card className="flex flex-col gap-3 p-4 transition-transform hover:-translate-y-0.5 hover:shadow-pop">
-                      <MerchantBadge chip={chipFor(m.merchant)} emoji={emojiFor(m.merchant)} />
+                      <MerchantBadge chip={chipFor(m.merchant)} emoji={emojiFor(m.merchant)} connectorKey={m.connectorKey} />
                       <div>
                         <p className="truncate text-[14px] font-semibold text-ink">{m.merchant}</p>
                         <p className="amount mt-0.5 text-[13px] text-muted">{money(m.total)}</p>
@@ -117,7 +117,7 @@ export default async function Dashboard() {
                   href={`/transactions/${t.id}`}
                   className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-cream/40"
                 >
-                  <MerchantBadge chip={chipFor(t.merchant)} emoji={emojiFor(t.merchant)} size={40} />
+                  <MerchantBadge chip={chipFor(t.merchant)} emoji={emojiFor(t.merchant)} connectorKey={t.connectorKey} size={40} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-semibold text-ink">{t.merchant}</p>
                     <p className="text-[13px] text-muted">{shortDate(t.date)}</p>

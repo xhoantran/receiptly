@@ -47,7 +47,7 @@ export default async function TransactionsPage({
                   href={`/transactions/${t.id}`}
                   className="flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-cream/40"
                 >
-                  <MerchantBadge chip={chipFor(t.merchant)} emoji={emojiFor(t.merchant)} size={40} />
+                  <MerchantBadge chip={chipFor(t.merchant)} emoji={emojiFor(t.merchant)} connectorKey={t.connectorKey} size={40} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[15px] font-semibold text-ink">{t.merchant}</p>
                     <p className="text-[13px] text-muted">

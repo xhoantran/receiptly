@@ -1,6 +1,8 @@
-import { listConnectors, connectorStats, coverageStats, money, merchantSummary, emojiFor, chipFor, DEFAULT_USER_ID } from "@/lib/data";
-import { Card, MerchantBadge, Pill } from "@/components/ui";
+import { listConnectors, connectorStats, coverageStats, money, merchantSummary, DEFAULT_USER_ID } from "@/lib/data";
+import { Card, Pill } from "@/components/ui";
 import { ConnectMerchant } from "@/components/ConnectMerchant";
+import { MerchantLogo } from "@/components/MerchantLogo";
+import { merchantByKey, merchantsByStatus } from "@/lib/merchants";
 
 export default async function ConnectorsPage() {
   const [connectors, stats, coverage, merchants] = await Promise.all([
@@ -22,14 +24,15 @@ export default async function ConnectorsPage() {
     (a, b) => (statsByKey.get(b.key)?.receipts ?? 0) - (statsByKey.get(a.key)?.receipts ?? 0)
   );
   const liveCount = ranked.filter((c) => (statsByKey.get(c.key)?.receipts ?? 0) > 0).length;
+  const roadmap = merchantsByStatus.filter((m) => m.status === "soon");
 
   return (
     <div className="mx-auto max-w-3xl">
       <header className="rise mb-6">
         <h1 className="font-display text-3xl font-semibold tracking-tight text-ink">Merchants 🔌</h1>
         <p className="mt-1 text-[14px] text-muted">
-          {liveCount} live · {connectors.length} connectors. Each one fetches your itemized receipts —
-          some via official APIs, most by working around the long tail.
+          {liveCount} live · {connectors.length} connected · {roadmap.length} on the roadmap. Each
+          merchant fetches your itemized receipts — signed in on your own device, so it just works.
         </p>
       </header>
 
@@ -42,7 +45,12 @@ export default async function ConnectorsPage() {
           return (
             <Card key={c.key} className={`p-5 ${live ? "" : "opacity-75"}`}>
               <div className="flex items-center gap-3">
-                <MerchantBadge chip={chipFor(c.displayName)} emoji={emojiFor(c.key)} size={48} />
+                <MerchantLogo
+                  domain={merchantByKey[c.key]?.domain}
+                  name={c.displayName}
+                  color={merchantByKey[c.key]?.color}
+                  size={48}
+                />
                 <div className="flex-1">
                   <p className="font-display text-lg font-semibold text-ink">{c.displayName}</p>
                   <div className="mt-1 flex items-center gap-1.5">
@@ -101,13 +109,24 @@ export default async function ConnectorsPage() {
         })}
       </div>
 
-      <Card className="rise mt-6 border-dashed p-6 text-center">
-        <p className="font-display text-lg font-semibold text-ink">Want another merchant? 🌱</p>
-        <p className="mx-auto mt-1 max-w-md text-[14px] leading-snug text-muted">
-          Run <code className="rounded bg-cream px-1.5 py-0.5 font-mono text-[13px]">npm run discover &lt;merchant&gt;</code>,
-          browse the site once, and receiptly learns its receipt API. Contributions welcome.
+      <section className="rise mt-8">
+        <div className="mb-3 flex items-baseline justify-between">
+          <h2 className="font-display text-xl font-semibold text-ink">On the roadmap</h2>
+          <span className="text-[13px] text-muted">{roadmap.length} more 🌱</span>
+        </div>
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
+          {roadmap.map((m) => (
+            <Card key={m.key} className="flex flex-col items-center gap-2 p-4 text-center">
+              <MerchantLogo domain={m.domain} name={m.name} color={m.color} size={40} />
+              <p className="w-full truncate text-[12px] font-semibold text-ink">{m.name}</p>
+              <span className="text-[11px] text-muted">{m.category}</span>
+            </Card>
+          ))}
+        </div>
+        <p className="mx-auto mt-4 max-w-md text-center text-[13px] leading-snug text-muted">
+          Adding a merchant is one entry in the catalog + a connector. Want one bumped up the list? Tell us.
         </p>
-      </Card>
+      </section>
     </div>
   );
 }

@@ -29,7 +29,7 @@ export default async function TransactionDetail({ params }: { params: Promise<{ 
 
       {/* Transaction header */}
       <Card className="rise mb-6 flex items-center gap-4 p-5">
-        <MerchantBadge chip={chipFor(tx.merchant)} emoji={emojiFor(tx.merchant)} size={56} />
+        <MerchantBadge chip={chipFor(tx.merchant)} emoji={emojiFor(tx.merchant)} connectorKey={tx.connectorKey} size={56} />
         <div className="flex-1">
           <h1 className="font-display text-2xl font-semibold text-ink">{tx.merchant}</h1>
           <p className="text-[14px] text-muted">{longDate(tx.date)}</p>
