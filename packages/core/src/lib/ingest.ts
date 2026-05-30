@@ -30,6 +30,8 @@ export async function rematchConnector(userId: string, key: string): Promise<{ e
     _id: r.id,
     receipt_id: r.id,
     date: r.date,
+    // The full timestamp lives in the stored raw payload (we don't keep a column).
+    purchased_at: (r.raw as { purchased_at?: string | null } | null)?.purchased_at ?? null,
     store: r.store,
     total: r.total,
     subtotal: r.subtotal,

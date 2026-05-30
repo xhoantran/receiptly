@@ -18,6 +18,9 @@ export type ReceiptItem = {
 export type ExtractedReceipt = {
   receipt_id?: string | null;
   date: string;
+  /** Full purchase timestamp (ISO) when the merchant provides one — used to
+   * disambiguate same-day, same-amount matches. `date` stays YYYY-MM-DD. */
+  purchased_at?: string | null;
   store?: string | null;
   total: number;
   subtotal?: number | null;

@@ -69,6 +69,7 @@ export function normalizePublixOnline(l: PublixListItem): ExtractedReceipt {
   return {
     receipt_id: l.Id,
     date: l.PurchaseDate.slice(0, 10),
+    purchased_at: l.PurchaseDate,
     store: l.StoreName,
     total: l.TotalPrice,
     subtotal: l.Subtotal ?? null,
@@ -125,6 +126,7 @@ export function normalizePublixDetail(d: PublixDetail): ExtractedReceipt {
   return {
     receipt_id: d.ReceiptId ?? d.TransactionKey,
     date: d.TransactionDate.slice(0, 10),
+    purchased_at: d.TransactionDate,
     store: d.FacilityName,
     total: d.GrandTotal,
     subtotal: d.OrderTotal ?? null,
