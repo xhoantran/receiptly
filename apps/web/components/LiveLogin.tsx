@@ -49,9 +49,6 @@ export function LiveLogin({
 
   const [phase, setPhase] = useState<Phase>({ kind: "starting" });
   const [viewport, setViewport] = useState<Viewport>({ width: 1280, height: 800 });
-  // Set when the worker uses a remote provider (Browserbase): we embed its
-  // interactive live-view iframe instead of streaming our own canvas.
-  const [liveViewUrl, setLiveViewUrl] = useState<string | null>(null);
   // Bumped to re-run the connect effect on "Retry".
   const [attempt, setAttempt] = useState(0);
   // Render the modal at <body> via a portal so it escapes the connector card's
@@ -133,7 +130,6 @@ export function LiveLogin({
     let cancelled = false;
     let frameUrl: string | null = null; // object URL of the in-flight frame
     setPhase({ kind: "starting" });
-    setLiveViewUrl(null);
 
     (async () => {
       // Capture the pre-login sync time so polling can detect a NEW scrape.
@@ -176,7 +172,7 @@ export function LiveLogin({
 
       ws.onmessage = (ev) => {
         if (typeof ev.data === "string") {
-          let msg: { type?: string; viewport?: Viewport; state?: WsState; message?: string; url?: string };
+          let msg: { type?: string; viewport?: Viewport; state?: WsState; message?: string };
           try {
             msg = JSON.parse(ev.data);
           } catch {
@@ -184,8 +180,6 @@ export function LiveLogin({
           }
           if (msg.type === "meta" && msg.viewport) {
             setViewport(msg.viewport);
-          } else if (msg.type === "liveview" && msg.url) {
-            setLiveViewUrl(msg.url);
           } else if (msg.type === "status" && msg.state) {
             setPhase({ kind: "live", state: msg.state, message: msg.message });
             if (msg.state === "scraping") startPolling();
@@ -394,14 +388,7 @@ export function LiveLogin({
         </div>
 
         <div className="flex flex-1 items-center justify-center overflow-auto bg-cream/40 p-4">
-          {liveViewUrl ? (
-            <iframe
-              src={liveViewUrl}
-              title={`Sign in to ${displayName}`}
-              allow="clipboard-read; clipboard-write"
-              className="h-[78vh] w-full rounded-xl border border-line bg-white shadow-soft"
-            />
-          ) : showCanvas ? (
+          {showCanvas ? (
             <canvas
               ref={canvasRef}
               width={viewport.width}

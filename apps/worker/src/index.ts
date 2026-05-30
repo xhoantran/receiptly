@@ -279,8 +279,7 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
     hardTimeout = null;
     sessions.delete(sessionId);
     if (ctx) {
-      if (ctx.dispose) await ctx.dispose().catch(() => {});
-      else await ctx.browser.close().catch(() => {});
+      await ctx.browser.close().catch(() => {});
       ctx = null;
     }
     if (closeWs) {
@@ -364,12 +363,6 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
     if (closed) return;
     sendStatus("awaiting_login");
 
-    if (ctx.liveViewUrl) {
-    // ── Remote (Browserbase): the user logs in inside the interactive live-view
-    // iframe (real input telemetry + residential IP → clears Akamai). No canvas
-    // streaming or input forwarding; we just watch for login over CDP below. ──
-    sendJson({ type: "liveview", url: ctx.liveViewUrl });
-    } else {
     // ── Screenshot stream (~5 fps), guarded against overlap + closed page ──
     let shooting = false;
     screenshotTimer = setInterval(() => {
@@ -441,7 +434,6 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
         }
       }
     });
-    } // end local (canvas) live-view
 
     // ── Login detection: on success, persist + enqueue scrape ──
     let finishing = false;
@@ -462,9 +454,8 @@ async function runLiveView(ws: WebSocket, session: PendingSession): Promise<void
           await setMerchantConnectionStatus(userId, connectorKey, "linked");
           sendStatus("logged_in");
 
-          // Release the browser/remote session before enqueuing the headless scrape.
-          if (ctx!.dispose) await ctx!.dispose().catch(() => {});
-          else await ctx!.browser.close().catch(() => {});
+          // Close the browser before enqueuing the headless scrape.
+          await ctx!.browser.close().catch(() => {});
           ctx = null;
 
           await boss.send("scrape", { userId, connectorKey });
