@@ -45,23 +45,17 @@ Three taps, then it runs itself:
 
 ## 📸 A look
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Welcome back 👋                                          │
-│  Here's what you've been buying                           │
-│                                                           │
-│  Total spend   Saved w/ deals   Items tracked   Match     │
-│  $12,640.24       $47.58             62           87%     │
-│                                                           │
-│  🟢 Publix · May 17                          $49.32  →    │
-│     1.04 lb  Top Sirloin Cap (Picanha)    sale −$3.64     │
-│     1×       Reveal Cat Food (Fish)        BOGO    FREE   │
-└─────────────────────────────────────────────────────────┘
-```
+<div align="center">
+  <img src="docs/dashboard.png" width="900" alt="receiptly dashboard — total spend, top merchants, itemized recent activity, and Sprout the agent" />
+</div>
 
 ---
 
 ## 🛍️ Supported merchants
+
+<div align="center">
+  <img src="docs/merchants.png" width="900" alt="Supported merchants grid — Publix live; Amazon & Costco in beta; 17 more on the roadmap" />
+</div>
 
 Logos and support status live in one catalog (`apps/web/lib/merchants.ts`) — adding a merchant lights it up everywhere automatically.
 
