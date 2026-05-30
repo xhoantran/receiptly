@@ -15,9 +15,23 @@ export function Sidebar() {
   return (
     <aside className="sticky top-0 hidden h-screen w-[248px] shrink-0 flex-col gap-2 border-r border-line/70 bg-cream/40 px-5 py-8 md:flex">
       <Link href="/" className="mb-6 flex items-center gap-2.5 px-2">
-        <span className="grid h-10 w-10 place-items-center rounded-2xl bg-sprout text-lg shadow-soft">
-          🧾
-        </span>
+        <svg viewBox="0 0 512 512" className="h-10 w-10 shrink-0 rounded-2xl shadow-soft" aria-hidden>
+          <defs>
+            <linearGradient id="rcptMark" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#15bd79" />
+              <stop offset="1" stopColor="#0a7d4d" />
+            </linearGradient>
+          </defs>
+          <rect x="16" y="16" width="480" height="480" rx="124" fill="url(#rcptMark)" />
+          <path d="M181,174 Q181,150 205,150 H307 Q331,150 331,174 V345 L306,363 281,345 256,363 231,345 206,363 181,345 Z" fill="#faf6ee" />
+          <g stroke="#9bd9be" strokeWidth="13" strokeLinecap="round">
+            <line x1="205" y1="208" x2="307" y2="208" />
+            <line x1="205" y1="246" x2="281" y2="246" />
+          </g>
+          <path d="M256,150 V120" stroke="#faf6ee" strokeWidth="11" strokeLinecap="round" />
+          <path d="M256,134 C235,135 221,118 231,99 C252,104 258,119 256,134 Z" fill="#faf6ee" />
+          <path d="M256,134 C277,135 291,118 281,99 C260,104 254,119 256,134 Z" fill="#faf6ee" />
+        </svg>
         <span className="font-display text-2xl font-semibold tracking-tight text-ink">
           receiptly
         </span>

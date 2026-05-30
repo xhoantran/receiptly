@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🧾 receiptly
+<img src="docs/logo.png" width="104" height="104" alt="receiptly" />
+
+# receiptly
 
 ### Your bank says **“$62.02 at Publix.”**<br/>receiptly says **“oat milk, cocoa, a picanha steak — and the cat food was free.”**
 
