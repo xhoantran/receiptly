@@ -90,7 +90,7 @@ export default async function ItemsPage() {
         })}
         {productsList.length === 0 && (
           <p className="px-4 py-10 text-center text-[14px] text-muted">
-            No products yet. Run a connector, then <code className="font-mono">npm run resolve</code>.
+            No products yet — connect a merchant and your items will show up here, grouped and priced.
           </p>
         )}
       </Card>

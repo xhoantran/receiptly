@@ -1,7 +1,7 @@
 /**
  * Shared ingest pipeline: persist receipts → rematch that merchant's
  * transactions → resolve items into canonical products.
- * Used by `receiptly scrape` and any offline rebuild.
+ * Used by the on-device `/raw` ingest route and any offline rebuild.
  *
  * Multi-tenant: a leading `userId` scopes the per-user reads/writes. Product
  * resolution touches the GLOBAL catalog and stays user-agnostic.
