@@ -15,8 +15,7 @@ export const costcoConnector: Connector = {
   },
 
   async fetchReceipts() {
-    throw new Error(
-      "costco connector not implemented yet. Run `receiptly discover costco` to capture its API, then implement fetchReceipts."
-    );
+    // Costco has no server-side scrape path — its receipts are captured on-device.
+    throw new Error("Costco receipts are captured on your device — open the receiptly desktop app to connect.");
   },
 };

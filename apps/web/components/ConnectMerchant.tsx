@@ -87,15 +87,13 @@ export function ConnectMerchant({
 
   return (
     <div className="mt-3 flex items-center justify-between gap-3">
-      <div className="min-w-0 text-[12px]">
+      <div className="min-w-0 flex-1 truncate text-[12px]" title={errored ? lastError ?? undefined : undefined}>
         {desktopMsg ? (
           <span className="text-sprout-deep">{desktopMsg}</span>
         ) : linked ? (
           <span className="text-sprout-deep">✓ Connected{since ? ` · synced ${since}` : ""}</span>
         ) : errored ? (
-          <span className="truncate text-berry" title={lastError ?? undefined}>
-            ⚠️ {lastError ? lastError : "Needs attention — try again"}
-          </span>
+          <span className="text-berry">⚠️ {lastError ? lastError : "Needs attention — try again"}</span>
         ) : (
           <span className="text-muted">Needs sign-in to fetch receipts</span>
         )}

@@ -1,13 +1,14 @@
 import type { Connector, Tx } from "./types.js";
 import { publixConnector } from "./publix.js";
 import { amazonConnector } from "./amazon.js";
-import { starbucksConnector } from "./starbucks.js";
 import { costcoConnector } from "./costco.js";
 
+// Only merchants with a working capture path are registered as connectors (they
+// show as connectable on the Merchants page). Everything else lives in the
+// catalog (apps/web/lib/merchants.ts) as "soon" and appears in the roadmap grid.
 export const connectors: Connector[] = [
   publixConnector,
   amazonConnector,
-  starbucksConnector,
   costcoConnector,
 ];
 

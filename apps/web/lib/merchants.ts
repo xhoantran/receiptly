@@ -21,7 +21,7 @@ export const MERCHANTS: Merchant[] = [
   { key: "publix", name: "Publix", domain: "publix.com", color: "#007a3e", status: "live", category: "Grocery" },
   { key: "amazon", name: "Amazon", domain: "amazon.com", color: "#ff9900", status: "beta", category: "Retail" },
   { key: "costco", name: "Costco", domain: "costco.com", color: "#e31837", status: "beta", category: "Wholesale" },
-  { key: "starbucks", name: "Starbucks", domain: "starbucks.com", color: "#00704a", status: "beta", category: "Food" },
+  { key: "starbucks", name: "Starbucks", domain: "starbucks.com", color: "#00704a", status: "soon", category: "Food" },
   { key: "target", name: "Target", domain: "target.com", color: "#cc0000", status: "soon", category: "Retail" },
   { key: "walmart", name: "Walmart", domain: "walmart.com", color: "#0071dc", status: "soon", category: "Retail" },
   { key: "kroger", name: "Kroger", domain: "kroger.com", color: "#0d4d9e", status: "soon", category: "Grocery" },
