@@ -25,7 +25,7 @@ export const MERCHANTS: Merchant[] = [
   { key: "target", name: "Target", domain: "target.com", color: "#cc0000", status: "soon", category: "Retail" },
   { key: "walmart", name: "Walmart", domain: "walmart.com", color: "#0071dc", status: "soon", category: "Retail" },
   { key: "kroger", name: "Kroger", domain: "kroger.com", color: "#0d4d9e", status: "soon", category: "Grocery" },
-  { key: "wholefoods", name: "Whole Foods", domain: "wholefoodsmarket.com", color: "#00674b", status: "soon", category: "Grocery" },
+  { key: "wholefoods", name: "Whole Foods", domain: "wholefoodsmarket.com", color: "#00674b", status: "beta", category: "Grocery" },
   { key: "traderjoes", name: "Trader Joe's", domain: "traderjoes.com", color: "#b4282d", status: "soon", category: "Grocery" },
   { key: "aldi", name: "ALDI", domain: "aldi.us", color: "#00417f", status: "soon", category: "Grocery" },
   { key: "samsclub", name: "Sam's Club", domain: "samsclub.com", color: "#0067a0", status: "soon", category: "Wholesale" },

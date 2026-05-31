@@ -36,6 +36,7 @@ type HtmlRaw = { orders?: HtmlOrder[] };
 const HTML_MERCHANTS: Record<string, { store: string }> = {
   amazon: { store: "Amazon" },
   costco: { store: "Costco" },
+  wholefoods: { store: "Whole Foods Market" },
 };
 
 export async function POST(req: Request, ctx: { params: Promise<{ key: string }> }) {

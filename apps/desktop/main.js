@@ -273,7 +273,27 @@ const HTML_SPECS = {
     listUrls: ["https://www.costco.com/OrdersAndPurchases"],
     base: "https://www.costco.com/OrdersAndPurchases",
   },
+  wholefoods: {
+    displayName: "Whole Foods",
+    partition: "persist:amazon", // WFM orders live in your Amazon account → shared login
+    listUrls: [0, 10, 20].map((s) => `https://www.amazon.com/your-orders/orders?startIndex=${s}`),
+    base: "https://www.amazon.com/your-orders",
+  },
 };
+
+// Write a capture diagnostic (what the scraper saw) so a real run is debuggable —
+// selectors for a new merchant can be tuned from the actual page, not guesswork.
+function writeDebug(key, data) {
+  try {
+    const dir = path.join(app.getPath("userData"), "receiptly-debug");
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `${key}-${Date.now()}.json`);
+    fs.writeFileSync(file, JSON.stringify(data, null, 2));
+    return file;
+  } catch (e) {
+    return null;
+  }
+}
 
 async function connectHtml(key) {
   const spec = HTML_SPECS[key];
@@ -297,6 +317,7 @@ async function connectHtml(key) {
   });
 
   const orders = new Map(); // id → { id, date, total, receiptUrl, text? }
+  const debugLog = []; // per-page scraper diagnostics (for tuning selectors)
   let reachedAt = 0; // when we first landed on the orders page (after login)
   let ordersBump = null; // resolves whenever a new order ref arrives
   const orderArrived = () => new Promise((r) => (ordersBump = r));
@@ -312,6 +333,8 @@ async function connectHtml(key) {
       orders.set(o.id, o);
     } else if (msg.type === "nav") {
       if (!reachedAt && String(msg.body || "").indexOf(spec.base) !== -1) reachedAt = Date.now();
+    } else if (msg.type === "debug") {
+      debugLog.push(msg.body);
     }
   };
   ipcMain.on("rcpt-html-capture", onCapture);
@@ -358,9 +381,20 @@ async function connectHtml(key) {
     ipcMain.removeListener("rcpt-html-capture", onCapture);
     if (!win.isDestroyed()) win.close();
 
+    // Always save a diagnostic so a real run is debuggable (selectors, counts).
+    const dumpFile = writeDebug(key, {
+      key,
+      ordersFound: orders.size,
+      withReceiptUrl: refs.length,
+      captured: payload.length,
+      orders: [...orders.values()].map((o) => ({ id: o.id, date: o.date, total: o.total, receiptUrl: o.receiptUrl, gotText: !!o.text })),
+      pages: debugLog,
+    });
+    console.log(`[connect] ${key}: debug dump → ${dumpFile}`);
+
     if (payload.length === 0) {
       console.log(`[connect] ${key}: nothing captured (found ${orders.size} refs)`);
-      status(`Couldn't read any ${spec.displayName} receipts — the page layout may have changed.`);
+      status(`Couldn't read any ${spec.displayName} receipts yet — saved a debug dump (${dumpFile}).`);
       return;
     }
 

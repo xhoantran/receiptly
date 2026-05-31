@@ -102,7 +102,50 @@ const { ipcRenderer } = require("electron");
         return out;
       },
     },
+
+    wholefoods: {
+      // Whole Foods orders live in the Amazon account — same printable invoice as
+      // Amazon, but we keep only the cards that mention "Whole Foods".
+      isReceiptUrl: function (url) {
+        var m = url.match(/[?&]orderID=([\w-]+)/);
+        return m ? m[1] : null;
+      },
+      scrapeOrders: function () {
+        var out = [];
+        var cards = document.querySelectorAll('[class*="order-card"]');
+        for (var i = 0; i < cards.length; i++) {
+          var card = cards[i];
+          var text = (card.innerText || "").replace(/\s+/g, " ");
+          if (!/whole\s?foods/i.test(text)) continue; // Whole Foods orders only
+          var inv = card.querySelector('a[href*="orderID="]');
+          var idm = inv && inv.href.match(/orderID=([\w-]+)/);
+          var dm = text.match(/Order placed\s+([A-Za-z]+ \d{1,2}, \d{4})/);
+          var tm = text.match(/Total\s+\$([\d,]+\.\d{2})/);
+          if (!idm || !dm) continue;
+          out.push({
+            id: idm[1],
+            date: isoDate(dm[1]),
+            total: tm ? num(tm[1]) : null,
+            receiptUrl: "https://www.amazon.com/gp/css/summary/print.html?orderID=" + idm[1],
+          });
+        }
+        return out;
+      },
+    },
   };
+
+  // A sample of order/receipt-ish links on the page — the raw material for tuning a
+  // merchant's selectors when a real run finds nothing.
+  function sampleAnchors() {
+    var out = [];
+    var anchors = document.querySelectorAll("a[href]");
+    for (var i = 0; i < anchors.length && out.length < 40; i++) {
+      var href = anchors[i].getAttribute("href") || "";
+      if (!/order|receipt|purchase|orderID|invoice/i.test(href)) continue;
+      out.push({ href: abs(href), text: (anchors[i].innerText || "").replace(/\s+/g, " ").trim().slice(0, 80) });
+    }
+    return out;
+  }
 
   var scraper = SCRAPERS[KEY];
   if (!scraper) return; // unknown merchant — do nothing
@@ -127,8 +170,22 @@ const { ipcRenderer } = require("electron");
         var o = orders[i];
         if (o && o.id && !sent[o.id]) { sent[o.id] = 1; fresh.push(o); }
       }
-      if (fresh.length) post("orders", fresh);
-    } catch (e) {}
+      if (fresh.length) {
+        post("orders", fresh);
+      } else {
+        // Found nothing new — emit a diagnostic of what's actually on the page
+        // (after React renders) so the selectors can be fixed from a real run.
+        post("debug", {
+          url: location.href,
+          title: document.title,
+          found: orders.length,
+          orderCards: document.querySelectorAll('[class*="order-card"]').length,
+          anchors: sampleAnchors(),
+        });
+      }
+    } catch (e) {
+      post("debug", { url: location.href, error: String(e && e.message ? e.message : e) });
+    }
   }
 
   function run() {

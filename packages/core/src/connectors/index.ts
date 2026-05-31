@@ -2,6 +2,7 @@ import type { Connector, Tx } from "./types.js";
 import { publixConnector } from "./publix.js";
 import { amazonConnector } from "./amazon.js";
 import { costcoConnector } from "./costco.js";
+import { wholefoodsConnector } from "./wholefoods.js";
 
 // Only merchants with a working capture path are registered as connectors (they
 // show as connectable on the Merchants page). Everything else lives in the
@@ -10,6 +11,7 @@ export const connectors: Connector[] = [
   publixConnector,
   amazonConnector,
   costcoConnector,
+  wholefoodsConnector,
 ];
 
 export const connectorsByKey: Record<string, Connector> = Object.fromEntries(
