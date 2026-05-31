@@ -24,7 +24,7 @@ function getDesktop(): DesktopBridge | null {
 
 // Merchants the desktop app can log into on-device. Adding one here lights up its
 // native "Connect & fetch" button (assuming a matching connector + capture exist).
-const NATIVE_MERCHANTS = new Set(["publix", "amazon", "costco", "wholefoods"]);
+const NATIVE_MERCHANTS = new Set(["publix", "amazon", "costco", "wholefoods", "target", "walmart", "kroger"]);
 
 function relativeSince(ts: number | null): string | null {
   if (!ts) return null;

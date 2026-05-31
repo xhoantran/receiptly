@@ -64,6 +64,9 @@ const HTML_MERCHANTS: Record<string, { store: string }> = {
   amazon: { store: "Amazon" },
   costco: { store: "Costco" },
   wholefoods: { store: "Whole Foods Market" },
+  target: { store: "Target" },
+  walmart: { store: "Walmart" },
+  kroger: { store: "Kroger" },
 };
 
 export async function POST(req: Request, ctx: { params: Promise<{ key: string }> }) {

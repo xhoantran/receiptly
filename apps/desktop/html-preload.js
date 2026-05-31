@@ -99,13 +99,15 @@ const { ipcRenderer } = require("electron");
       scrapeOrders: function () { return amazonOrders(false); },
     },
 
-    costco: {
-      // Costco's order/receipt detail pages carry an id in the query string. We only
-      // treat a URL as a receipt when it has one of these params (so the orders LIST
-      // page itself is never mistaken for a receipt). Best-effort — Costco renders a
-      // React SPA, so selectors may need a tuning pass on the first real session.
+    // Default for any merchant without a bespoke scraper (Costco, Target, Walmart,
+    // Kroger, …): find order/receipt links carrying an id, and capture each linked
+    // page's text for the backend LLM. Order pages are usually React SPAs, so this
+    // is best-effort — the debug dump reveals the real link shape for tuning.
+    generic: {
       isReceiptUrl: function (url) {
-        var m = url.match(/[?&](?:orderHeaderId|documentId|orderNumber|barcode|sourceOrderNumber)=([\w-]+)/i);
+        var m =
+          url.match(/[?&](?:order(?:number|id|_id|_number)?|receipt(?:id|number)?|purchase(?:id)?|confirmationNumber|transactionId|documentId|barcode)=([\w.-]{4,})/i) ||
+          url.match(/\/(?:orders?|receipts?|purchases?|mypurchases)\/(?:[a-z-]+\/)?([\w.-]{6,})(?:[/?#]|$)/i);
         return m ? m[1] : null;
       },
       scrapeOrders: function () {
@@ -122,7 +124,7 @@ const { ipcRenderer } = require("electron");
           if (!id || seen[id]) continue;
           seen[id] = 1;
           // Pull date/total from the closest row-ish ancestor's text, best-effort.
-          var row = a.closest('[class*="order"],[class*="row"],li,tr,article') || a;
+          var row = a.closest('[class*="order"],[class*="purchase"],[class*="card"],[class*="row"],li,tr,article') || a;
           var t = (row.innerText || "").replace(/\s+/g, " ");
           var dm = t.match(/([A-Za-z]{3,9}\.?\s+\d{1,2},?\s+\d{4})|(\d{1,2}\/\d{1,2}\/\d{2,4})/);
           var tm = t.match(/\$[\s]?([\d,]+\.\d{2})/);
@@ -165,8 +167,8 @@ const { ipcRenderer } = require("electron");
     return out;
   }
 
-  var scraper = SCRAPERS[KEY];
-  if (!scraper) return; // unknown merchant — do nothing
+  // Bespoke scraper if the merchant has one, else the generic order-link scraper.
+  var scraper = SCRAPERS[KEY] || SCRAPERS.generic;
 
   // ── Run ─────────────────────────────────────────────────────────────────────
   // A RECEIPT page (URL has an id) → post its rendered text. Otherwise it's a LIST

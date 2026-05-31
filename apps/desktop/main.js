@@ -279,6 +279,26 @@ const HTML_SPECS = {
     listUrls: [0, 10, 20].map((s) => `https://www.amazon.com/your-orders/orders?startIndex=${s}`),
     base: "https://www.amazon.com/your-orders",
   },
+  // These use the generic order-link scraper (html-preload.js). Best-effort until
+  // verified on a real login — the debug dump shows the real link shape to tune.
+  target: {
+    displayName: "Target",
+    partition: "persist:target",
+    listUrls: ["https://www.target.com/orders"],
+    base: "https://www.target.com/orders",
+  },
+  walmart: {
+    displayName: "Walmart",
+    partition: "persist:walmart",
+    listUrls: ["https://www.walmart.com/orders"],
+    base: "https://www.walmart.com/orders",
+  },
+  kroger: {
+    displayName: "Kroger",
+    partition: "persist:kroger",
+    listUrls: ["https://www.kroger.com/mypurchases"],
+    base: "https://www.kroger.com/mypurchases",
+  },
 };
 
 // Write a capture diagnostic (what the scraper saw) so a real run is debuggable —
