@@ -41,33 +41,62 @@ const { ipcRenderer } = require("electron");
   // Each: { isReceiptUrl(url) → id|null, scrapeOrders() → [{id,date,total,receiptUrl}] }
   // `id` MUST be derivable from the receiptUrl alone (so the LIST ref and the later
   // RECEIPT capture share the same id).
+  // Amazon (and Whole Foods, which lives in the Amazon account): collect order IDs
+  // from ANY order link on the page (View invoice, order-details, track package, …)
+  // and build the printable-invoice URL. Date/total are best-effort from the
+  // surrounding card — the backend LLM reads them off the invoice anyway, so a miss
+  // here doesn't lose the receipt. Order id format is ddd-ddddddd-ddddddd.
+  function amazonReceiptId(url) {
+    var m = String(url).match(/[?&]order(?:id)?=(\d{3}-\d{7}-\d{7})/i);
+    return m ? m[1] : null;
+  }
+  function amazonOrders(wfmOnly) {
+    var out = [];
+    var seen = {};
+    var anchors = document.querySelectorAll("a[href]");
+    for (var i = 0; i < anchors.length; i++) {
+      var href = anchors[i].href || anchors[i].getAttribute("href") || "";
+      var m = href.match(/[?&]order(?:id)?=(\d{3}-\d{7}-\d{7})/i);
+      if (!m || seen[m[1]]) continue;
+      var id = m[1];
+      var card = anchors[i].closest('[class*="order-card"]');
+      // A real Whole Foods Market order carries a "wfm" link ref. The "365 by Whole
+      // Foods Market" brand in a normal shipped Amazon order does NOT — so detect on
+      // the ref, not the product name. amazon skips WFM; wholefoods keeps only WFM.
+      var isWfm = !!card && /wfm/i.test(card.innerHTML || "");
+      if (wfmOnly ? !isWfm : isWfm) continue;
+      seen[id] = 1;
+      var cardText = card ? (card.innerText || "").replace(/\s+/g, " ") : "";
+      var dm = cardText.match(/([A-Za-z]+ \d{1,2},? \d{4})/);
+      var tm = cardText.match(/\$([\d,]+\.\d{2})/);
+      // Product thumbnails on the card → matched to the invoice's line items on the
+      // backend (by title), so the receipt shows real photos.
+      var products = [];
+      if (card) {
+        var imgs = card.querySelectorAll("img");
+        var ps = {};
+        for (var k = 0; k < imgs.length; k++) {
+          var src = imgs[k].currentSrc || imgs[k].src || imgs[k].getAttribute("src") || "";
+          if (!/media-amazon\.com\/images\/I\//.test(src) || ps[src]) continue;
+          ps[src] = 1;
+          products.push({ image: src, title: (imgs[k].alt || "").replace(/\s+/g, " ").trim() });
+        }
+      }
+      out.push({
+        id: id,
+        date: dm ? isoDate(dm[1]) : null,
+        total: tm ? num(tm[1]) : null,
+        receiptUrl: "https://www.amazon.com/gp/css/summary/print.html?orderID=" + id,
+        products: products,
+      });
+    }
+    return out;
+  }
+
   var SCRAPERS = {
     amazon: {
-      // Printable invoice — the one page with per-item prices. id = orderID.
-      isReceiptUrl: function (url) {
-        var m = url.match(/[?&]orderID=([\w-]+)/);
-        return m ? m[1] : null;
-      },
-      scrapeOrders: function () {
-        var out = [];
-        var cards = document.querySelectorAll('[class*="order-card"]');
-        for (var i = 0; i < cards.length; i++) {
-          var card = cards[i];
-          var text = (card.innerText || "").replace(/\s+/g, " ");
-          var inv = card.querySelector('a[href*="orderID="]');
-          var idm = inv && inv.href.match(/orderID=([\w-]+)/);
-          var dm = text.match(/Order placed\s+([A-Za-z]+ \d{1,2}, \d{4})/);
-          var tm = text.match(/Total\s+\$([\d,]+\.\d{2})/);
-          if (!idm || !dm) continue;
-          out.push({
-            id: idm[1],
-            date: isoDate(dm[1]),
-            total: tm ? num(tm[1]) : null,
-            receiptUrl: "https://www.amazon.com/gp/css/summary/print.html?orderID=" + idm[1],
-          });
-        }
-        return out;
-      },
+      isReceiptUrl: amazonReceiptId,
+      scrapeOrders: function () { return amazonOrders(false); },
     },
 
     costco: {
@@ -104,33 +133,9 @@ const { ipcRenderer } = require("electron");
     },
 
     wholefoods: {
-      // Whole Foods orders live in the Amazon account — same printable invoice as
-      // Amazon, but we keep only the cards that mention "Whole Foods".
-      isReceiptUrl: function (url) {
-        var m = url.match(/[?&]orderID=([\w-]+)/);
-        return m ? m[1] : null;
-      },
-      scrapeOrders: function () {
-        var out = [];
-        var cards = document.querySelectorAll('[class*="order-card"]');
-        for (var i = 0; i < cards.length; i++) {
-          var card = cards[i];
-          var text = (card.innerText || "").replace(/\s+/g, " ");
-          if (!/whole\s?foods/i.test(text)) continue; // Whole Foods orders only
-          var inv = card.querySelector('a[href*="orderID="]');
-          var idm = inv && inv.href.match(/orderID=([\w-]+)/);
-          var dm = text.match(/Order placed\s+([A-Za-z]+ \d{1,2}, \d{4})/);
-          var tm = text.match(/Total\s+\$([\d,]+\.\d{2})/);
-          if (!idm || !dm) continue;
-          out.push({
-            id: idm[1],
-            date: isoDate(dm[1]),
-            total: tm ? num(tm[1]) : null,
-            receiptUrl: "https://www.amazon.com/gp/css/summary/print.html?orderID=" + idm[1],
-          });
-        }
-        return out;
-      },
+      // Whole Foods orders are the WFM-tagged orders in the Amazon account.
+      isReceiptUrl: amazonReceiptId,
+      scrapeOrders: function () { return amazonOrders(true); },
     },
   };
 

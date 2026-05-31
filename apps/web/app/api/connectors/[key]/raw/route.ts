@@ -23,14 +23,41 @@ import {
   type PublixListItem,
   type PublixDetail,
 } from "@receiptly/core/connectors/publix.js";
-import type { ExtractedReceipt } from "@receiptly/core/lib/extract.js";
+import type { ExtractedReceipt, ReceiptItem } from "@receiptly/core/lib/extract.js";
 import { DEFAULT_USER_ID } from "@receiptly/core/lib/constants.js";
 
 export const runtime = "nodejs";
 
+type HtmlProduct = { image?: string | null; title?: string | null };
 type PublixRaw = { list?: PublixListItem[]; details?: PublixDetail[] };
-type HtmlOrder = { id?: string; date?: string | null; total?: number | null; text: string };
+type HtmlOrder = { id?: string; date?: string | null; total?: number | null; text: string; products?: HtmlProduct[] };
 type HtmlRaw = { orders?: HtmlOrder[] };
+
+// Match scraped product thumbnails (image + title) to the invoice's line items by
+// title-token overlap, so the receipt shows real photos. The invoice text has no
+// images; the order page has them but not the precise prices — this bridges them.
+function tokenize(s: string): string[] {
+  return s.toLowerCase().replace(/[^a-z0-9 ]/g, " ").split(/\s+/).filter((w) => w.length > 2);
+}
+function attachImages(items: ReceiptItem[], products: HtmlProduct[]): ReceiptItem[] {
+  const prods = products
+    .filter((p) => p.image && p.title)
+    .map((p) => ({ image: p.image as string, toks: new Set(tokenize(p.title as string)) }));
+  if (!prods.length) return items;
+  return items.map((it) => {
+    if (it.image_url) return it;
+    const want = tokenize(it.name);
+    if (!want.length) return it;
+    let best: { score: number; image: string } | null = null;
+    for (const p of prods) {
+      let n = 0;
+      for (const w of want) if (p.toks.has(w)) n++;
+      const score = n / want.length;
+      if (score >= 0.4 && (!best || score > best.score)) best = { score, image: p.image };
+    }
+    return best ? { ...it, image_url: best.image } : it;
+  });
+}
 
 // Merchants whose receipts arrive as rendered text (no JSON API) → LLM-extracted.
 const HTML_MERCHANTS: Record<string, { store: string }> = {
@@ -109,6 +136,7 @@ async function ingestHtml(req: Request, key: string) {
         const ex = await extractReceiptDetailFromHtml(o.text);
         receipts.push({
           ...ex,
+          items: attachImages(ex.items, o.products ?? []),
           receipt_id: o.id ?? ex.receipt_id ?? null,
           date: o.date || ex.date,
           total: o.total ?? ex.total,

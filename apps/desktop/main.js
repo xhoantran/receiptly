@@ -376,7 +376,7 @@ async function connectHtml(key) {
 
     const payload = [...orders.values()]
       .filter((o) => o.text)
-      .map((o) => ({ id: o.id, date: o.date || null, total: o.total ?? null, text: o.text }));
+      .map((o) => ({ id: o.id, date: o.date || null, total: o.total ?? null, text: o.text, products: o.products || [] }));
 
     ipcMain.removeListener("rcpt-html-capture", onCapture);
     if (!win.isDestroyed()) win.close();
@@ -387,7 +387,7 @@ async function connectHtml(key) {
       ordersFound: orders.size,
       withReceiptUrl: refs.length,
       captured: payload.length,
-      orders: [...orders.values()].map((o) => ({ id: o.id, date: o.date, total: o.total, receiptUrl: o.receiptUrl, gotText: !!o.text })),
+      orders: [...orders.values()].map((o) => ({ id: o.id, date: o.date, total: o.total, receiptUrl: o.receiptUrl, gotText: !!o.text, products: (o.products || []).length })),
       pages: debugLog,
     });
     console.log(`[connect] ${key}: debug dump → ${dumpFile}`);
