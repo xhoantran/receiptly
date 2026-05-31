@@ -152,6 +152,19 @@ const { ipcRenderer } = require("electron");
     return out;
   }
 
+  // A sample of <img> sources on the page — to see the real product-image URL
+  // pattern (and whether they sit inside an order card) when photos don't attach.
+  function sampleImages() {
+    var out = [];
+    var imgs = document.querySelectorAll("img");
+    for (var i = 0; i < imgs.length && out.length < 24; i++) {
+      var src = imgs[i].currentSrc || imgs[i].src || imgs[i].getAttribute("src") || imgs[i].getAttribute("data-src") || "";
+      if (!src || src.indexOf("data:") === 0) continue;
+      out.push({ src: src, alt: (imgs[i].alt || "").slice(0, 60), inCard: !!imgs[i].closest('[class*="order-card"]') });
+    }
+    return out;
+  }
+
   var scraper = SCRAPERS[KEY];
   if (!scraper) return; // unknown merchant — do nothing
 
@@ -186,6 +199,7 @@ const { ipcRenderer } = require("electron");
           found: orders.length,
           orderCards: document.querySelectorAll('[class*="order-card"]').length,
           anchors: sampleAnchors(),
+          images: sampleImages(),
         });
       }
     } catch (e) {
